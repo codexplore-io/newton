@@ -1,6 +1,6 @@
 # Tutorial
 
-This covers a basic tutorial to get a simple blog app up and running with Newton Web (Newton).
+This covers a basic tutorial to get a simple app up and running with Newton Web (Newton).
 If you haven't already, see the "Getting Started" section to install the Newton CLI.
 
 ## Creating a Project
@@ -29,7 +29,7 @@ The `mainRouter` will take care of all of the routing for your project.
 
 ## Creating an App
 The best practice is to create an app for each table you will have in your database.
-So, since we are going to have blog posts, let's create a new app called blogs (we aren't calling it posts due to potential confusion with POST requests). In your terminal, run:
+Let's create a new app called blogs (we aren't calling it posts due to potential confusion with POST requests). In your terminal, run:
 
 `newton-admin startapp blogs`
 
@@ -92,7 +92,6 @@ Within your index.ejs, you can put whatever you want.
 For example:
 
 ```html
-<!DOCTYPE html>
 <html lang="en" dir="ltr">
     <head>
         <meta charset="utf-8">
@@ -115,3 +114,92 @@ module.exports = {
 ```
 
 Now, we can include html templates in our Newton project.
+
+## Models
+Now, let's add models to our project.
+Newton comes ready to go with MongoDB and Mongoose set up.
+By default, Newton will use a MongoDB database with the same name as your project, and you can adjust this in your `main/settings.js` via the `database.databaseURL`.
+Make sure you are running MongoDB in the background before beginning this part.
+
+Next, let's create a simple model for our Blog Post in `blogs/models.js`;
+
+```javascript
+const mongoose = require('mongoose');
+
+const BlogSchema = new mongoose.Schema({
+    title: { type:String },
+    content: { type: String }
+}, {timestamp: true});
+
+mongoose.model('Blog', BlogSchema);
+```
+
+In the `main/db.js`, Newton takes care of most of what you need for the collection creation.
+Next, in your controller, let's create a new blog in our index method.
+When we visit our index view, we will create a new blog with the title of "My new Blog" and content of "This is blog content".
+If you want to manually check it in the command line in your database, you can.
+However, let's create another method in our controller to query our database for all Blogs.
+Our `blogs/controllers.js` should look like this now:
+
+```javascript
+const mongoose = require('mongoose');
+
+module.exports = {
+    index: (request, response) => {
+        const Blog = mongoose.model('Blog');
+        let blog = new Blog();
+        blog.title = "My new Blog";
+        blog.content = "This is blog content";
+        blog.save();
+        response.render("blogs/index");
+    },
+    list: (request, response) => {
+        const Blog = mongoose.model('Blog');
+        Blog.find({}, (err, blogs)=>{
+            if(err){
+                response.json(err);
+            }else{
+                let context = blogs;
+                response.render("blogs/list", {blogs: context});
+            }
+        })
+    }
+}
+```
+
+We are using a new view now, `list.ejs`.
+We will have to create a new file in our blogs/views/blogs called `list.ejs`, which will contain the following:
+
+```html
+<html lang="en" dir="ltr">
+    <head>
+        <meta charset="utf-8">
+        <title></title>
+    </head>
+    <body>
+        <% for(let i = 0; i < blogs.length; i++){%>
+            <p>Title: <%= blogs[i].title %></p>
+            <p>Content: <%= blogs[i].content %></p>
+        <% } %>
+    </body>
+</html>
+```
+
+This will loop through and display all of our blogs (only one so far if you have only visited the index method once).
+Finally, we will need to create a route so that we can display our list controller.
+Our `blogs/routes.js` will have another route added.
+
+```javascript
+const router = require('express').Router();
+const blogsController = require('./controllers');
+
+//Your routes go here
+router.get('/', blogsController.index);
+router.get('/list', blogsController.list);
+
+module.exports = router;
+```
+
+If you visit `localhost:8000/blogs/list`, you should see your blog(s) that you have created.
+
+The rest of the functionality, at this point, is really just applying Express.js and Mongoose, o you should refer to their documentation for further questions.
